@@ -1,0 +1,308 @@
+﻿using Auxiliary.Configuration;
+using CSF.TShock;
+using IL.Terraria.Properties;
+using Microsoft.Xna.Framework;
+using Prizes.Models;
+using System;
+using System.Data;
+using System.Net.Http;
+using System.Reflection;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
+using System.Timers;
+using Terraria;
+using TerrariaApi.Server;
+using TShockAPI;
+using TShockAPI.Hooks;
+
+namespace Prizes
+{
+
+    [ApiVersion(2, 1)]
+    public class Prizes : TerrariaPlugin
+    {
+        private Timer _chatGames;
+        private readonly TSCommandFramework _fx;
+        private static PrizesSettings config;
+        public ChatGame cg;
+        public override string Name => "Prizes";
+
+        public override Version Version => new Version(1, 0, 0);
+
+        public override string Author => "Average";
+        public override string Description => "A plugin intended for TBC, implementing interactive chat games and TSL vote rewards!";
+
+        public Prizes(Main game) : base(game)
+        {
+            _fx = new(new()
+            {
+                DefaultLogLevel = CSF.LogLevel.Warning,
+            });
+        }
+        public async override void Initialize()
+        {
+            Configuration<PrizesSettings>.Load("Prizes");
+            config = Configuration<PrizesSettings>.Settings;
+
+            if (config.APIKey == "xxx")
+            {
+                Console.WriteLine("Prizes: You should probably set your api key in Prizes.json in your tShock folder! If not, whatevs, you do you b.");
+            }
+
+            GeneralHooks.ReloadEvent += (x) =>
+            {
+                Configuration<PrizesSettings>.Load("Prizes");
+                config = Configuration<PrizesSettings>.Settings;
+                x.Player.SendSuccessMessage("Prizes has been reloaded!");
+            };
+
+            ServerApi.Hooks.ServerChat.Register(this, ChatGameChat);
+
+            #region Chat Games Timer initialization
+            if (config.ChatGamesEnabled == true)
+            {
+                cg = new ChatGame();
+                _chatGames = new(config.ChatGamesTimer*1000*60)
+                {
+                    AutoReset = true
+                };
+                _chatGames.Elapsed += async (_, x)
+                    => await ChatGames(x);
+                _chatGames.Start();
+            }
+
+
+            #endregion
+
+            await _fx.BuildModulesAsync(typeof(Prizes).Assembly);
+        }
+
+        public async Task ChatGames(ElapsedEventArgs _)
+        {
+            Random rand = new Random();
+            string Oper = null;
+            int gamemode = rand.Next(0, 5);
+            string mathProblem = null;
+            string wordProblem = null;
+            int answer = 0;
+            DataTable eval = new DataTable();
+
+            switch (gamemode)
+            {
+                case 1:
+                    Oper = "-";
+                    mathProblem = "" + rand.Next(1, 100) + Oper + rand.Next(1, 150);
+                    answer = (int)eval.Compute(mathProblem, "");
+                    cg.answer = answer;
+
+                    break;
+                case 2:
+                    Oper = "+";
+                    mathProblem = rand.Next(1, 100) + Oper + rand.Next(1, 150);
+                    answer = (int)eval.Compute(mathProblem, "");
+                    cg.answer = answer;
+
+                    break;
+                case 3:
+                    Oper = "*";
+                    mathProblem = rand.Next(1, 12) + Oper + rand.Next(1, 12);
+                    answer = (int)eval.Compute(mathProblem, "");
+                    cg.answer = answer;
+                    break;
+                case 4:
+                    wordProblem = "true";
+                    break;
+                default:
+                    Oper = "+";
+                    mathProblem = rand.Next(1, 100) + Oper + rand.Next(1, 150);
+                    answer = (int)eval.Compute(mathProblem, "");
+                    cg.answer = answer;
+                    break;
+            }
+            cg.Occuring = true;
+
+
+            if (wordProblem != null)
+            {
+                var problem = rand.Next(0, WordList.list.Length);
+                wordProblem = WordList.list[problem];
+                cg.wordAnswer = wordProblem;
+                TSPlayer.All.SendMessage("[Chat Games] Unscramble this word problem and win 25 minutes of rank playtime: " + ScrambleWord(wordProblem), Color.LightGreen);
+
+            }
+            else
+            {
+                TSPlayer.All.SendMessage("[Chat Games] Answer this math problem and win 25 minutes of rank playtime: " + mathProblem, Color.LightGreen);
+            }
+
+
+        }
+
+        void ChatGameChat(ServerChatEventArgs args)
+        {
+            TSPlayer player = TShock.Players[args.Who];
+
+            if (!cg.Occuring)
+            {
+                return;
+            }
+
+            if (cg.Occuring == true)
+            {
+                if (args.Text == cg.answer.ToString())
+                {
+                    foreach(string cmd in config.CommandsOnChatGameWin)
+                    {
+                        string newCmd = cmd.Replace("%PLAYER%", '"' + player.Name + '"');
+                        newCmd = newCmd.Replace("%ACCOUNT%", '"' + player.Account.Name + '"');
+
+                        Commands.HandleCommand(TSPlayer.Server, newCmd);
+                    }
+                    TSPlayer.All.SendMessage("[Chat Games] " + player.Name + " won the chat game (answer: " + cg.answer.ToString() + ") and has won 25 minutes of rank playtime! Hooray!", Color.Gold);
+                    cg.Occuring = false;
+                    cg.answer = 0;
+                }
+                if (args.Text == cg.wordAnswer.ToString())
+                {
+                    foreach (string cmd in config.CommandsOnChatGameWin)
+                    {
+                        string newCmd = cmd.Replace("%PLAYER%", '"' + player.Name + '"');
+                        newCmd = newCmd.Replace("%ACCOUNT%", '"' + player.Account.Name + '"');
+
+                        Commands.HandleCommand(TSPlayer.Server, newCmd);
+                    }
+                    TSPlayer.All.SendMessage("[Chat Games] " + player.Name + " won the chat game (answer: " + cg.wordAnswer.ToString() + ") and has won 25 minutes of rank playtime! Congratz!", Color.Gold);
+                    cg.Occuring = false;
+                    cg.wordAnswer = null;
+                    cg.answer = 0;
+                }
+            }
+          
+        }
+        public string ScrambleWord(string word)
+        {
+            char[] chars = new char[word.Length];
+            Random rand = new Random(10000);
+
+            int index = 0;
+
+            while (word.Length > 0)
+            {
+                // Get a random number between 0 and the length of the word.
+                int next = rand.Next(0, word.Length - 1);
+
+                // Take the character from the random position and add to our char array.
+                chars[index] = word[next];
+
+                // Remove the character from the word.
+                word = word.Substring(0, next) + word.Substring(next + 1);
+
+                ++index;
+            }
+
+            return new String(chars);
+        }
+
+        public static async Task<bool> rewardClaimed(TSPlayer player)
+        {
+            bool hasVoted = false;
+
+            string voteUrl = "http://terraria-servers.com/api/?action=post&object=votes&element=claim&key=" + config.APIKey + "&username=" + player.Name;
+
+            try
+            {
+                using (HttpClient client = new HttpClient())
+                {
+                    using (HttpResponseMessage res = await client.GetAsync(voteUrl))
+                    {
+                        using (HttpContent content = res.Content)
+                        {
+                            var data = await content.ReadAsStringAsync();
+
+                            if (data != null)
+                            {
+                                if (data == "1")
+                                {
+                                    hasVoted = true;
+                                    return hasVoted;
+                                }
+                                else
+                                {
+                                    hasVoted = false;
+                                    return hasVoted;
+                                }
+                            }
+                            else
+                            {
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.Write(ex);
+                return hasVoted;
+            }
+
+            return hasVoted;
+
+        }
+
+        public static async Task<bool> checkifPlayerVoted(TSPlayer player)
+        {
+            bool hasVoted = false;
+
+            string voteUrl = ($"http://terraria-servers.com/api/?object=votes&element=claim&key={config.APIKey}&username={player.Name}");
+
+            try
+            {
+                using (HttpClient client = new HttpClient())
+                {
+                    using (HttpResponseMessage res = await client.GetAsync(voteUrl))
+                    {
+                        using (HttpContent content = res.Content)
+                        {
+                            var data = await content.ReadAsStringAsync();
+
+                            if (data != null)
+                            {
+                                if (data == "1" || data == "2")
+                                {
+                                    hasVoted = true;
+                                    return hasVoted;
+                                }
+                                else
+                                {
+                                    hasVoted = false;
+                                    return hasVoted;
+                                }
+                            }
+                            else
+                            {
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.Write(ex);
+                return hasVoted;
+            }
+
+            return hasVoted;
+
+        }
+
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                ServerApi.Hooks.ServerChat.Deregister(this, ChatGameChat);
+            }
+            base.Dispose(disposing);
+        }
+    }
+}
