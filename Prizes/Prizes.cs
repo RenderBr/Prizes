@@ -167,12 +167,12 @@ namespace Prizes
                 var problem = rand.Next(0, WordList.list.Length);
                 wordProblem = WordList.list[problem];
                 cg.wordAnswer = wordProblem;
-                TSPlayer.All.SendMessage("[Chat Games] Unscramble this word problem and win 25 minutes of rank playtime: " + ScrambleWord(wordProblem), Color.LightGreen);
+                TSPlayer.All.SendMessage("[Chat Games] (/answer) Unscramble this word problem and win 25 minutes of rank playtime: " + ScrambleWord(wordProblem), Color.LightGreen);
 
             }
             else
             {
-                TSPlayer.All.SendMessage("[Chat Games] Answer this math problem and win 25 minutes of rank playtime: " + mathProblem, Color.LightGreen);
+                TSPlayer.All.SendMessage("[Chat Games] (/answer) Answer this math problem and win 25 minutes of rank playtime: " + mathProblem, Color.LightGreen);
             }
 
 
