@@ -57,7 +57,6 @@ namespace Prizes
                 x.Player.SendSuccessMessage("Prizes has been reloaded!");
             };
 
-            ServerApi.Hooks.ServerChat.Register(this, ChatGameChat);
             ServerApi.Hooks.NetGreetPlayer.Register(this, GreetPlayer);
 
             #region Chat Games Timer initialization
@@ -300,7 +299,6 @@ namespace Prizes
         {
             if (disposing)
             {
-                ServerApi.Hooks.ServerChat.Deregister(this, ChatGameChat);
                 ServerApi.Hooks.NetGreetPlayer.Deregister(this, GreetPlayer);
 
             }
