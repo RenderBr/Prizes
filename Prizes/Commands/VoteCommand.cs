@@ -16,7 +16,6 @@ namespace Prizes.Modules
     {
         PrizesSettings config = Configuration<PrizesSettings>.Settings;
 
-
         [Command("vote")]
         [Description("The command users use to claim vote rewards")]
         public IResult Vote()

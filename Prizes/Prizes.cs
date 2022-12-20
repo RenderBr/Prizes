@@ -3,6 +3,7 @@ using CSF.TShock;
 using IL.Terraria.Properties;
 using Microsoft.Xna.Framework;
 using Prizes.Models;
+using Prizes.Modules;
 using System;
 using System.Data;
 using System.Net.Http;
@@ -24,7 +25,7 @@ namespace Prizes
         private Timer _chatGames;
         private readonly TSCommandFramework _fx;
         private static PrizesSettings config;
-        public ChatGame cg;
+        public static ChatGame cg;
         public override string Name => "Prizes";
 
         public override Version Version => new Version(1, 0, 0);
@@ -57,6 +58,7 @@ namespace Prizes
             };
 
             ServerApi.Hooks.ServerChat.Register(this, ChatGameChat);
+            ServerApi.Hooks.NetGreetPlayer.Register(this, GreetPlayer);
 
             #region Chat Games Timer initialization
             if (config.ChatGamesEnabled == true)
@@ -75,6 +77,45 @@ namespace Prizes
             #endregion
 
             await _fx.BuildModulesAsync(typeof(Prizes).Assembly);
+        }
+
+        private void GreetPlayer(GreetPlayerEventArgs args)
+        {
+            TSPlayer Player = TShock.Players[args.Who];
+            
+            if(Player == null)
+            {
+                return;
+            }
+            if (!Player.IsLoggedIn)
+            {
+                return;
+            }
+
+            if (Prizes.checkifPlayerVoted(Player).Result == true)
+            {
+                if (Prizes.rewardClaimed(Player).Result == true)
+                {
+                    string rewardMsg = config.OnVoteMessage;
+                    rewardMsg = rewardMsg.Replace("%PLAYER%", Player.Name);
+                    foreach (string cmd in config.CommandsOnVote)
+                    {
+                        string newCmd = cmd.Replace("%PLAYER%", '"' + Player.Name + '"');
+                        Commands.HandleCommand(TSPlayer.Server, newCmd);
+                    }
+                    TSPlayer.All.SendMessage(rewardMsg, Color.LightGreen);
+                    return;
+                }
+                else
+                {
+                    return;
+                }
+              
+
+            }
+
+            Player.SendMessage(config.HaventVotedMessage, Color.LightGreen);
+            return;
         }
 
         public async Task ChatGames(ElapsedEventArgs _)
@@ -138,47 +179,6 @@ namespace Prizes
 
         }
 
-        void ChatGameChat(ServerChatEventArgs args)
-        {
-            TSPlayer player = TShock.Players[args.Who];
-
-            if (!cg.Occuring)
-            {
-                return;
-            }
-
-            if (cg.Occuring == true)
-            {
-                if (args.Text == cg.answer.ToString())
-                {
-                    foreach(string cmd in config.CommandsOnChatGameWin)
-                    {
-                        string newCmd = cmd.Replace("%PLAYER%", '"' + player.Name + '"');
-                        newCmd = newCmd.Replace("%ACCOUNT%", '"' + player.Account.Name + '"');
-
-                        Commands.HandleCommand(TSPlayer.Server, newCmd);
-                    }
-                    TSPlayer.All.SendMessage("[Chat Games] " + player.Name + " won the chat game (answer: " + cg.answer.ToString() + ") and has won 25 minutes of rank playtime! Hooray!", Color.Gold);
-                    cg.Occuring = false;
-                    cg.answer = 0;
-                }
-                if (args.Text == cg.wordAnswer.ToString())
-                {
-                    foreach (string cmd in config.CommandsOnChatGameWin)
-                    {
-                        string newCmd = cmd.Replace("%PLAYER%", '"' + player.Name + '"');
-                        newCmd = newCmd.Replace("%ACCOUNT%", '"' + player.Account.Name + '"');
-
-                        Commands.HandleCommand(TSPlayer.Server, newCmd);
-                    }
-                    TSPlayer.All.SendMessage("[Chat Games] " + player.Name + " won the chat game (answer: " + cg.wordAnswer.ToString() + ") and has won 25 minutes of rank playtime! Congratz!", Color.Gold);
-                    cg.Occuring = false;
-                    cg.wordAnswer = null;
-                    cg.answer = 0;
-                }
-            }
-          
-        }
         public string ScrambleWord(string word)
         {
             char[] chars = new char[word.Length];
@@ -301,6 +301,8 @@ namespace Prizes
             if (disposing)
             {
                 ServerApi.Hooks.ServerChat.Deregister(this, ChatGameChat);
+                ServerApi.Hooks.NetGreetPlayer.Deregister(this, GreetPlayer);
+
             }
             base.Dispose(disposing);
         }
