@@ -32,9 +32,8 @@ namespace Prizes.Modules
             {
                 return Error("Please enter an answer!");
             }
-
-
-            if (cg.Occuring == true)
+            
+            if (cg.Occuring == true && cg.wordAnswer == "")
             {
                 if (answer == cg.answer.ToString())
                 {
@@ -50,7 +49,7 @@ namespace Prizes.Modules
                     return Announce("[Chat Games] " + player.Name + " won the chat game (answer: " + answer + ") and has won 25 minutes of rank playtime! Hooray!", Color.Gold);
                   
                 }
-                if (answer == cg.wordAnswer.ToString())
+                else if (answer == cg.wordAnswer && cg.wordAnswer != "")
                 {
                     foreach (string cmd in config.CommandsOnChatGameWin)
                     {
@@ -60,10 +59,14 @@ namespace Prizes.Modules
                         Commands.HandleCommand(TSPlayer.Server, newCmd);
                     }
                     cg.Occuring = false;
-                    cg.wordAnswer = null;
+                    cg.wordAnswer = "";
                     cg.answer = 0;
                     return Announce("[Chat Games] " + player.Name + " won the chat game (answer: " + answer + ") and has won 25 minutes of rank playtime! Congratz!", Color.Gold);
-             
+
+                }
+                else
+                {
+                    return Error("Incorrect! You entered: " + answer);
                 }
 
             }
