@@ -47,7 +47,7 @@ namespace Prizes.Modules
                     }
                     cg.Occuring = false;
                     cg.answer = 0;
-                    return Announce("[Chat Games] " + player.Name + " won the chat game (answer: " + cg.answer.ToString() + ") and has won 25 minutes of rank playtime! Hooray!", Color.Gold);
+                    return Announce("[Chat Games] " + player.Name + " won the chat game (answer: " + answer + ") and has won 25 minutes of rank playtime! Hooray!", Color.Gold);
                   
                 }
                 if (answer == cg.wordAnswer.ToString())
@@ -62,7 +62,7 @@ namespace Prizes.Modules
                     cg.Occuring = false;
                     cg.wordAnswer = null;
                     cg.answer = 0;
-                    return Announce("[Chat Games] " + player.Name + " won the chat game (answer: " + cg.wordAnswer.ToString() + ") and has won 25 minutes of rank playtime! Congratz!", Color.Gold);
+                    return Announce("[Chat Games] " + player.Name + " won the chat game (answer: " + answer + ") and has won 25 minutes of rank playtime! Congratz!", Color.Gold);
              
                 }
 
