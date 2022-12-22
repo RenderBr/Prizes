@@ -2,6 +2,7 @@
 using CSF.TShock;
 using IL.Terraria.Properties;
 using Microsoft.Xna.Framework;
+using MongoDB.Driver;
 using Prizes.Models;
 using Prizes.Modules;
 using System;
@@ -56,8 +57,8 @@ namespace Prizes
                 config = Configuration<PrizesSettings>.Settings;
                 x.Player.SendSuccessMessage("Prizes has been reloaded!");
             };
-
-            ServerApi.Hooks.NetGreetPlayer.Register(this, GreetPlayer);
+            
+            TerrariaApi.Server.ServerApi.Hooks.NetGreetPlayer.Register(this, GreetPlayer);
 
             #region Chat Games Timer initialization
             if (config.ChatGamesEnabled == true)
@@ -119,6 +120,9 @@ namespace Prizes
 
         public async Task ChatGames(ElapsedEventArgs _)
         {
+            if (TShock.Utils.GetActivePlayerCount() == 0)
+                return;
+
             Random rand = new Random();
             string Oper = null;
             int gamemode = rand.Next(0, 5);
@@ -130,13 +134,14 @@ namespace Prizes
             switch (gamemode)
             {
                 case 1:
+                    cg.wordAnswer = "";
                     Oper = "-";
                     mathProblem = "" + rand.Next(1, 100) + Oper + rand.Next(1, 150);
                     answer = (int)eval.Compute(mathProblem, "");
                     cg.answer = answer;
-
                     break;
                 case 2:
+                    cg.wordAnswer = "";
                     Oper = "+";
                     mathProblem = rand.Next(1, 100) + Oper + rand.Next(1, 150);
                     answer = (int)eval.Compute(mathProblem, "");
@@ -144,15 +149,19 @@ namespace Prizes
 
                     break;
                 case 3:
+                    cg.wordAnswer = "";
                     Oper = "*";
                     mathProblem = rand.Next(1, 12) + Oper + rand.Next(1, 12);
                     answer = (int)eval.Compute(mathProblem, "");
                     cg.answer = answer;
                     break;
                 case 4:
-                    wordProblem = "true";
+                    var problem = rand.Next(0, WordList.list.Length);
+                    wordProblem = WordList.list[problem];
+                    cg.wordAnswer = wordProblem;
                     break;
                 default:
+                    cg.wordAnswer = "";
                     Oper = "+";
                     mathProblem = rand.Next(1, 100) + Oper + rand.Next(1, 150);
                     answer = (int)eval.Compute(mathProblem, "");
@@ -164,14 +173,11 @@ namespace Prizes
 
             if (wordProblem != null)
             {
-                var problem = rand.Next(0, WordList.list.Length);
-                wordProblem = WordList.list[problem];
-                cg.wordAnswer = wordProblem;
                 TSPlayer.All.SendMessage("[Chat Games] (/answer) Unscramble this word problem and win 25 minutes of rank playtime: " + ScrambleWord(wordProblem), Color.LightGreen);
-
             }
             else
             {
+                cg.wordAnswer = "";
                 TSPlayer.All.SendMessage("[Chat Games] (/answer) Answer this math problem and win 25 minutes of rank playtime: " + mathProblem, Color.LightGreen);
             }
 
@@ -199,7 +205,7 @@ namespace Prizes
                 ++index;
             }
 
-            return new String(chars);
+            return new string(chars);
         }
 
         public static async Task<bool> rewardClaimed(TSPlayer player)
@@ -299,7 +305,7 @@ namespace Prizes
         {
             if (disposing)
             {
-                ServerApi.Hooks.NetGreetPlayer.Deregister(this, GreetPlayer);
+                TerrariaApi.Server.ServerApi.Hooks.NetGreetPlayer.Deregister(this, GreetPlayer);
 
             }
             base.Dispose(disposing);
